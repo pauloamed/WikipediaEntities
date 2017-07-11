@@ -88,7 +88,9 @@ public class LoadWikiData {
 
   public static void main(String[] args) {
     try {
-      new LoadWikiData().load("wikidata-20151214-all.json.bz2", "enwiki", "dewiki", "eswiki", "frwiki");
+    	String jsonPath = args[0];
+        String[] langCodes = args[1].split(",");
+      	new LoadWikiData().load(jsonPath, langCodes);
     }
     catch(IOException e) {
       e.printStackTrace();

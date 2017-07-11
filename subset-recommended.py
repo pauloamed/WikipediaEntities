@@ -19,7 +19,7 @@ pat = re.compile(r"^(.*?):[0-9:]+:([0-9]+):([0-9]+)%$")
 # Output to stdout:
 ou = sys.stdout
 
-for line in gzip.open("entities.gz"):
+for line in gzip.open(sys.argv[1]):
 	line = line.split("\t")
 	phrase, count, used = line[0], line[1], line[2]
 	if used < mincount: continue
