@@ -14,6 +14,8 @@ exactonly = True
 mincontrast = 20
 # skip entities that start dont start with a letter
 start_alpha_only = True
+# only output the phrase itself, not the corresponding top entity
+phrase_only = True
 
 # Match the percentage at the end only:
 pat = re.compile(r"^(.*?):[0-9:]+:([0-9]+):([0-9]+)%$")
@@ -61,5 +63,6 @@ with gzip.open(sys.argv[1]) as infile:
 
         ou.write(phrase)
         ou.write("\t")
-        ou.write(m.group(1))
+        if not phrase_only:
+            ou.write(m.group(1))
         ou.write("\n")
