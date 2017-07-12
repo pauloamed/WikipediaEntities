@@ -12,6 +12,8 @@ mintrustexact = 80
 exactonly = True
 # Minimum contrast, i.e. second may have at most trust < besttrust-mincontrast
 mincontrast = 20
+# skip entities that start dont start with a letter
+start_alpha_only = True
 
 # Match the percentage at the end only:
 pat = re.compile(r"^(.*?):[0-9:]+:([0-9]+):([0-9]+)%$")
@@ -24,19 +26,30 @@ with gzip.open(sys.argv[1]) as infile:
         line = line.decode('utf8')
         line = line.split('\t')
         phrase, count, used = line[0], int(line[1]), int(line[2])
-        if used < mincount: continue
-        if len(phrase) < minlen: continue
+
+        if used < mincount:
+            continue
+        if len(phrase) < minlen:
+            continue
+        if start_alpha_only and not phrase[0].isalpha():
+            continue
+
         m = pat.match(line[3])
         if not m:
             print >> sys.stderr, "Did not match:", line
             continue
+
         trust = float(m.group(3))
         isexact = not (m.group(2) == '0')
         if isexact:
-            if trust < mintrustexact: continue
+            if trust < mintrustexact:
+                continue
         else:
-            if trust < mintrust: continue
-        if exactonly and not isexact: continue
+            if trust < mintrust:
+                continue
+
+        if exactonly and not isexact:
+            continue
         if len(line) > 4:
             m2 = pat.match(line[4])
             if not m2:
@@ -45,6 +58,7 @@ with gzip.open(sys.argv[1]) as infile:
             trust2 = float(m2.group(3))
             if trust2 >= trust - mincontrast:
                 continue
+
         ou.write(phrase)
         ou.write("\t")
         ou.write(m.group(1))
