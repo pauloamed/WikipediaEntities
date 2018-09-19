@@ -90,7 +90,7 @@
 		<dependency>
 			<groupId>org.apache.lucene</groupId>
 			<artifactId>lucene-core</artifactId>
-			<version>5.3.1</version>
+			<version>5.5.5</version>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
@@ -107,13 +107,19 @@
 			<artifactId>commons-compress</artifactId>
 			<version>1.10</version>
 		</dependency>
+<dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-annotations</artifactId>
+    <version>2.9.6</version>
+</dependency>
 		<dependency>
 			<groupId>org.apache.lucene</groupId>
 			<artifactId>lucene-analyzers-common</artifactId>
-			<version>5.3.1</version>
+			<version>5.5.5</version>
 		</dependency>
 	</dependencies>
 	<issueManagement>
 		<url>https://github.com/kno10/WikipediaEntities/issues</url>
 	</issueManagement>
+
 </project>
