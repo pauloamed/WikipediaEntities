@@ -139,7 +139,7 @@ wrapped into more efficient implementations.
 We are using a streaming XML parser, as you cannot just build a DOM tree from
 a 10 GB compressed (48.7 GB decompressed) file...
 
-Note: this implementation may need 24 GB of RAM to run, because we keep a lot of
+Note: this implementation works better with 24 GB of RAM to run, because we keep a lot of
 data in memory, and sort it at the very end when writing. By splitting the process
 into a third (sorting) phase, memory usage could be reduced. But given the size of
 the Lucene index (15 GB), extra memory will also improve runtimes a lot.
@@ -165,8 +165,8 @@ hell"), we rely a few of them in this project:
 Running
 -------
 1. download wikipedia dump in xml and json forms. For example: 
-  * enwiki-20170620-pages-articles.xml.bz2
-  * wikidata-20170626-all.json.bz2
+  * enwiki-20180820-pages-articles.xml.bz2
+  * wikidata-20180826-all.json.bz2
   * Note: you can download multiple languages. If you do this, download xml and json for each language.
 2. edit wikipediaentities.properties:
   * edit directory name to match wikipedia dump date
