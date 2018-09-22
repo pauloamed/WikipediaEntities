@@ -15,6 +15,21 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
  */
 public class CounterSet {
   /**
+   * Get the maximum value.
+   *
+   * @return Maximum value.
+   */
+  public static <O> int max(Object2IntOpenHashMap<O> counters) {
+    int result = 0;
+    for(Iterator<Object2IntMap.Entry<O>> iter = counters.object2IntEntrySet().iterator(); iter.hasNext();) {
+      Object2IntMap.Entry<O> entry = iter.next();
+      if( result < entry.getIntValue() )
+        result = entry.getIntValue();
+    }
+    return result;
+  }
+
+  /**
    * Get a descending list of counted items.
    *
    * @return List of items.
@@ -25,6 +40,23 @@ public class CounterSet {
       // Note: fast iterator will recycle this object!
       Object2IntMap.Entry<O> entry = iter.next();
       copy.add(new Entry<O>(entry.getKey(), entry.getIntValue()));
+    }
+    Collections.sort(copy);
+    return copy;
+  }
+
+  /**
+   * Get a descending list of counted items that are above specified limit.
+   *
+   * @return List of items.
+   */
+  public static <O> List<Entry<O>> descendingAndAbove(Object2IntOpenHashMap<O> counters, int lowerlimit) {
+    ArrayList<Entry<O>> copy = new ArrayList<>(counters.size());
+    for(Iterator<Object2IntMap.Entry<O>> iter = counters.object2IntEntrySet().fastIterator(); iter.hasNext();) {
+      // Note: fast iterator will recycle this object!
+      Object2IntMap.Entry<O> entry = iter.next();
+      if(entry.getIntValue() >= lowerlimit)
+        copy.add(new Entry<O>(entry.getKey(), entry.getIntValue()));
     }
     Collections.sort(copy);
     return copy;

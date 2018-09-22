@@ -43,14 +43,11 @@ public class AnalyzeLinks {
 
   Progress prog = new Progress("Computing support");
 
-  BlockingQueue<Candidate> proqueue = new ArrayBlockingQueue<>(1000);
+  BlockingQueue<Candidate> proqueue = new ArrayBlockingQueue<>(1000,true);
 
-  BlockingQueue<Candidate> outqueue = new ArrayBlockingQueue<>(1000 + 1);
+  BlockingQueue<Candidate> outqueue = new ArrayBlockingQueue<>(1000,true);
 
   boolean shutdown = false;
-
-  /** Lucene index searcher */
-  IndexSearcher searcher;
 
   private void run() throws IOException {
     int par = Math.min(Integer.valueOf(Config.get("parallelism")), Runtime.getRuntime().availableProcessors());
@@ -59,29 +56,33 @@ public class AnalyzeLinks {
     }
 
     // String unification, for performance.
-    Unique<String> unique = new Unique<>(50_000_000);
+    Unique<String> unique = new Unique<>(100000);
     // Load Wikidata information:
     Map<String, String> datamap = loadWikidata(unique, Config.get("wikidata.output"));
-    System.out.format("Read %d wikidata maps.\n", datamap.size());
+    System.out.format("Read %d wikidata maps, %d unique strings.\n", datamap.size(), unique.size());
+    System.gc();
     // Load redirects
     Reference2ReferenceOpenHashMap<String, String> redmap = loadRedirects(unique, Config.get("redirects.output"));
-    System.out.format("Read %d redirects.\n", redmap.size());
-
+    System.out.format("Read %d redirects, %d unique strings.\n", redmap.size(), unique.size());
+    System.gc();
     computeClosure(datamap, redmap);
-    System.out.format("computed redirect clouse of %d wikidata maps.\n", datamap.size());
+    System.out.format("computed redirect closure of %d wikidata maps.\n", datamap.size());
+    redmap.clear();
     redmap = null; // Free.
+    unique.clear();
+    unique = null;
+    System.gc();
 
     String nam = Config.get("linktext.output");
     String dir = Config.get("indexer.dir");
     String out = Config.get("entities.output");
     FSDirectory ldir = FSDirectory.open(FileSystems.getDefault().getPath(dir));
     IndexReader reader = DirectoryReader.open(ldir);
-    searcher = new IndexSearcher(reader);
-
+    System.gc();
     ArrayList<Thread> threads = new ArrayList<>();
     threads.add(new OutputThread(out));
     for(int i = 0; i < par; i++)
-      threads.add(new WorkerThread("Worker-" + i, datamap));
+      threads.add(new WorkerThread("Worker-" + i, datamap,new IndexSearcher(reader)));
 
     // Start all:
     for(Thread th : threads)
@@ -91,10 +92,6 @@ public class AnalyzeLinks {
     for(Thread th : threads) {
       try {
         th.join();
-        // Help the writer thread to shutdown...
-        synchronized(monitor) {
-          monitor.notify();
-        }
       }
       catch(InterruptedException e) {
         e.printStackTrace();
@@ -112,7 +109,7 @@ public class AnalyzeLinks {
    * @throws IOException
    */
   private Map<String, String> loadWikidata(Unique<String> unique, String fnam) throws IOException {
-    Map<String, String> m = new Object2ObjectOpenHashMap<>(30_000_000);
+    Map<String, String> m = new Object2ObjectOpenHashMap<>(100000);
     try (BufferedReader r = new BufferedReader(//
     new InputStreamReader(Util.openInput(fnam)))) {
       String line = r.readLine();
@@ -121,11 +118,6 @@ public class AnalyzeLinks {
       while((line = r.readLine()) != null) {
         String[] cols = line.split("\t");
         assert (cols.length == header.length);
-        for(int i = 1; i < cols.length; i++) {
-          final String title = cols[i];
-          if(title == null || title.length() == 0)
-            continue;
-        }
         String nam = null;
         for(int i = 1; i < cols.length; i++) {
           if(cols[i] == null || cols[i].length() == 0) {
@@ -155,7 +147,7 @@ public class AnalyzeLinks {
    * @throws IOException
    */
   private Reference2ReferenceOpenHashMap<String, String> loadRedirects(Unique<String> unique, String fnam) throws IOException {
-    Reference2ReferenceOpenHashMap<String, String> m = new Reference2ReferenceOpenHashMap<>(15_000_000);
+    Reference2ReferenceOpenHashMap<String, String> m = new Reference2ReferenceOpenHashMap<>(100000);
     try (BufferedReader r = new BufferedReader(//
     new InputStreamReader(Util.openInput(fnam)))) {
       String line = null;
@@ -240,24 +232,22 @@ public class AnalyzeLinks {
     }
   }
 
-  /** Used for awaking the output thread */
-  Object monitor = new Object();
-
   private class WorkerThread extends Thread {
     Object2IntOpenHashMap<String> counters = new Object2IntOpenHashMap<>();
 
     StringBuilder buf = new StringBuilder();
 
-    Map<String, String> datamap;
+    /** Lucene index searcher */
+    IndexSearcher searcher;
 
-    ObjectOpenHashSet<String> dups = new ObjectOpenHashSet<>(),
-        dupsExact = new ObjectOpenHashSet<>();
+    Map<String, String> datamap;
 
     static final int EXACT = 0x1_0000;
 
-    public WorkerThread(String name, Map<String, String> datamap) {
+    public WorkerThread(String name, Map<String, String> datamap, IndexSearcher s) {
       super(name);
       this.datamap = datamap;
+      this.searcher = s;
     }
 
     @Override
@@ -278,32 +268,37 @@ public class AnalyzeLinks {
           break;
         }
       }
+      System.err.println(getName()+" finished");
     }
 
-    private void analyze(Candidate cand) throws IOException {
+    private void analyze(Candidate cand) throws IOException, InterruptedException {
       PhraseQuery.Builder pq = new PhraseQuery.Builder();
       for(String t : cand.query.split(" "))
         pq.add(new Term(LuceneWikipediaIndexer.LUCENE_FIELD_TEXT, t));
       counters.clear();
       // Careful: max count must be less than 64k, because we use short counts!
       TopDocs res = searcher.search(pq.build(), 0xFFFF);
+      pq = null;
       ScoreDoc[] docs = res.scoreDocs;
+      int totalHits = res.totalHits;
+      res=null;
       if(docs.length < MINIMUM_MENTIONS) {
         cand.query = null; // Flag as dead.
         return; // Too rare.
       }
-      int minsupp = Math.max(MINIMUM_MENTIONS, docs.length / 10);
       int weight = 0;
+
       for(int i = 0; i < docs.length; ++i) {
         Document d = searcher.doc(docs[i].doc);
         String[] lis = d.get(LuceneWikipediaIndexer.LUCENE_FIELD_LINKS).split("\t");
+        docs[i] = null;
         if(lis.length == 0) {
           // String dtitle = d.get(LuceneWikipediaIndexer.LUCENE_FIELD_TITLE);
           // System.err.format("No links for %s.\n", dtitle);
           continue;
         }
-        dups.clear();
-        dupsExact.clear();
+        ObjectOpenHashSet<String> dups = new ObjectOpenHashSet<>();
+        ObjectOpenHashSet<String> dupsExact = new ObjectOpenHashSet<>();
         // Even positions are link targets:
         // Beware: Java "split" loses trailing separators!
         boolean used = false;
@@ -323,41 +318,42 @@ public class AnalyzeLinks {
       }
       boolean output = false;
       if(counters.size() > 0) {
-        buf.setLength(0); // clear
-        buf.append(cand.query);
-        buf.append('\t').append(res.totalHits);
-        buf.append('\t').append(weight);
-        List<Entry<String>> sorted = CounterSet.descending(counters);
-        int max = weight;
-        // int max = Math.max(docs.length, sorted.get(0).getCombinedCount());
-        final double norm = Math.log1p(.1 * max);
-        for(CounterSet.Entry<String> c : sorted) {
-          final int count = c.getSearchCount();
-          if(count < minsupp)
-            break;
-          if(count >> 1 > minsupp) // Increase cutoff
-            minsupp = count >> 1;
-          String targ = c.getKey();
-          if(targ == null)
-            continue; // Was not a candidate.
-          int conf = (int) Math.round(Math.log1p(.1 * c.getSearchCount()) / norm * 100.);
-          buf.append('\t').append(targ);
-          buf.append(':').append(c.getSearchCount());
-          buf.append(':').append(c.getExactCount());
-          buf.append(':').append(conf).append('%');
-          output = true;
+        int minsupp = Math.max(MINIMUM_MENTIONS, docs.length / 10);
+        int maxCount = CounterSet.max(counters);
+        if(maxCount >> 1 > minsupp) // Increase cutoff
+          minsupp = maxCount >> 1;
+
+        if( maxCount >= minsupp )
+        {
+          List<Entry<String>> sorted = CounterSet.descendingAndAbove(counters,minsupp);
+          buf.setLength(0); // clear
+          buf.append(cand.query);
+          buf.append('\t').append(totalHits);
+          buf.append('\t').append(weight);
+          int max = weight;
+          // int max = Math.max(docs.length, sorted.get(0).getCombinedCount());
+          final double norm = Math.log1p(.1 * max);
+          for(CounterSet.Entry<String> c : sorted) {
+            final int count = c.getSearchCount();
+            String targ = c.getKey();
+            if(targ == null)
+              continue; // Was not a candidate.
+            int conf = (int) Math.round(Math.log1p(.1 * count) / norm * 100.);
+            buf.append('\t').append(targ);
+            buf.append(':').append(count);
+            buf.append(':').append(c.getExactCount());
+            buf.append(':').append(conf).append('%');
+            output = true;
+          }
         }
       }
       if(output) {
         // System.err.println(buf.toString());
         cand.matches = buf.toString(); // Flag as good.
+        outqueue.put(cand);
       }
       else
         cand.query = null; // Flag as dead.
-      // Wake up writer thread, if waiting.
-      synchronized(monitor) {
-        monitor.notifyAll();
-      }
     }
   }
 
@@ -372,7 +368,6 @@ public class AnalyzeLinks {
         try {
           Candidate cand = new Candidate(line);
           proqueue.put(cand);
-          outqueue.put(cand);
         }
         catch(InterruptedException e) {
           break;
@@ -396,22 +391,17 @@ public class AnalyzeLinks {
     @Override
     public void run() {
       try (PrintStream out = Util.openOutput(nam)) {
-        while(!outqueue.isEmpty() || !shutdown) {
+        while(!proqueue.isEmpty() || !outqueue.isEmpty() || !shutdown) {
           try {
             Candidate a = outqueue.poll(100, TimeUnit.MILLISECONDS);
             if(a == null)
               continue;
-            while(true) {
-              if(a.query == null)
-                break; // Query failed to yield good results.
-              if(a.matches != null) { // Success
-                out.append(a.matches);
-                out.append('\n');
-                break;
-              }
-              synchronized(monitor) {
-                monitor.wait(); // Wait for wakeup signal
-              }
+            if(a.query == null)
+              continue; // Query failed to yield good results.
+            if(a.matches != null) { // Success
+              out.append(a.matches);
+              out.append('\n');
+              continue;
             }
           }
           catch(InterruptedException e) {
