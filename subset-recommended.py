@@ -1,10 +1,11 @@
 #!/usr/bin/python
 import gzip, re, sys
+import codecs, locale, sys
 
 # Minimum phrase length (characters)
-minlen = 3
+minlen = 2
 # Minimum number of occurrences
-mincount = 50
+mincount = 20
 # Minimum trust value
 mintrust = 90
 mintrustexact = 80
@@ -13,7 +14,7 @@ exactonly = True
 # Minimum contrast, i.e. second may have at most trust < besttrust-mincontrast
 mincontrast = 20
 # skip entities that start dont start with a letter
-start_alpha_only = True
+start_alpha_only = False
 # only output the phrase itself, not the corresponding top entity
 phrase_only = True
 
@@ -21,6 +22,7 @@ phrase_only = True
 pat = re.compile(r"^(.*?):[0-9:]+:([0-9]+):([0-9]+)%$")
 
 # Output to stdout:
+sys.stdout = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
 ou = sys.stdout
 
 with gzip.open(sys.argv[1]) as infile:
