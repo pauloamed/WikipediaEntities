@@ -381,6 +381,7 @@ public class AnalyzeLinks {
   }
 
   private class OutputThread extends Thread {
+    private int GcFrequency = 10000;
     private String nam;
 
     public OutputThread(String nam) {
@@ -391,11 +392,18 @@ public class AnalyzeLinks {
     @Override
     public void run() {
       try (PrintStream out = Util.openOutput(nam)) {
+        int countgc = GcFrequency;
         while(!proqueue.isEmpty() || !outqueue.isEmpty() || !shutdown) {
           try {
             Candidate a = outqueue.poll(100, TimeUnit.MILLISECONDS);
             if(a == null)
               continue;
+            countgc--;
+            if(countgc==0)
+            {
+              countgc=GcFrequency;
+              System.gc();
+            }
             if(a.query == null)
               continue; // Query failed to yield good results.
             if(a.matches != null) { // Success
