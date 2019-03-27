@@ -196,7 +196,7 @@ public class ParseWikipedia {
     Handler handler;
 
     /** Pattern for recognizing redirects */
-    private Matcher redirmatcher = Pattern.compile("#(?:REDIRECT|WEITERLEITUNG|REDIRECCI[oOÓó]N|REDIRECTION)[:,\\s]*\\[\\[\\s*([^\\]\\[\\|#]*?)(?:#\\s*(.*?)\\s*)?(?:\\s*\\|\\s*[^\\]\\[]*)?\\s*\\]\\]", Pattern.CASE_INSENSITIVE).matcher("");
+    private Matcher redirmatcher = Pattern.compile("#(?:PATRZ|REDIRECT|WEITERLEITUNG|REDIRECCI[oOÓó]N|REDIRECTION)[:,\\s]*\\[\\[\\s*([^\\]\\[\\|#]*?)(?:#\\s*(.*?)\\s*)?(?:\\s*\\|\\s*[^\\]\\[]*)?\\s*\\]\\]", Pattern.CASE_INSENSITIVE).matcher("");
 
     /**
      * Constructor.
@@ -230,7 +230,7 @@ public class ParseWikipedia {
     private void process(Article a) {
       String title = Util.removeEntities(a.title);
       // Skip boring "list of" pages
-      if(title.startsWith("List ") || title.startsWith("Liste ") || title.startsWith("Anexo:"))
+      if(title.startsWith("List ") || title.startsWith("Liste ") || title.startsWith("Anexo:") || title.startsWith("Lista "))
         return;
       String text = Util.removeEntities(a.rawtext);
       if(a.redirect != null) {
