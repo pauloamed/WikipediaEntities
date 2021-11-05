@@ -56,7 +56,7 @@ public class AnalyzeLinks {
     }
 
     // String unification, for performance.
-    Unique<String> unique = new Unique<>(100000);
+    Unique<String> unique = new Unique<>(50_000_000);
     // Load Wikidata information:
     Map<String, String> datamap = loadWikidata(unique, Config.get("wikidata.output"));
     System.out.format("Read %d wikidata maps, %d unique strings.\n", datamap.size(), unique.size());
@@ -109,7 +109,7 @@ public class AnalyzeLinks {
    * @throws IOException
    */
   private Map<String, String> loadWikidata(Unique<String> unique, String fnam) throws IOException {
-    Map<String, String> m = new Object2ObjectOpenHashMap<>(100000);
+    Map<String, String> m = new Object2ObjectOpenHashMap<>(30_000_000);
     try (BufferedReader r = new BufferedReader(//
     new InputStreamReader(Util.openInput(fnam)))) {
       String line = r.readLine();
@@ -147,7 +147,7 @@ public class AnalyzeLinks {
    * @throws IOException
    */
   private Reference2ReferenceOpenHashMap<String, String> loadRedirects(Unique<String> unique, String fnam) throws IOException {
-    Reference2ReferenceOpenHashMap<String, String> m = new Reference2ReferenceOpenHashMap<>(100000);
+    Reference2ReferenceOpenHashMap<String, String> m = new Reference2ReferenceOpenHashMap<>(15_000_000);
     try (BufferedReader r = new BufferedReader(//
     new InputStreamReader(Util.openInput(fnam)))) {
       String line = null;
