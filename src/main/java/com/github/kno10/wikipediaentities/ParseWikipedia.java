@@ -196,7 +196,7 @@ public class ParseWikipedia {
     Handler handler;
 
     /** Pattern for recognizing redirects */
-    private Matcher redirmatcher = Pattern.compile("#(?:PATRZ|REDIRECT|WEITERLEITUNG|REDIRECCI[oOÓó]N|REDIRECTION)[:,\\s]*\\[\\[\\s*([^\\]\\[\\|#]*?)(?:#\\s*(.*?)\\s*)?(?:\\s*\\|\\s*[^\\]\\[]*)?\\s*\\]\\]", Pattern.CASE_INSENSITIVE).matcher("");
+    private Matcher redirmatcher = Pattern.compile("#(?:PATRZ|REDIRECT|REDIRECIONAMENTO|WEITERLEITUNG|REDIRECCI[oOÓó]N|REDIRECTION)[:,\\s]*\\[\\[\\s*([^\\]\\[\\|#]*?)(?:#\\s*(.*?)\\s*)?(?:\\s*\\|\\s*[^\\]\\[]*)?\\s*\\]\\]", Pattern.CASE_INSENSITIVE).matcher("");
 
     /**
      * Constructor.
