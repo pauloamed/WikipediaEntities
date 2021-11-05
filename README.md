@@ -164,26 +164,36 @@ hell"), we rely a few of them in this project:
 
 Running
 -------
+```
+0. Compile project with maven
+  * mvn compile
+  * Note: Java scripts will be executed using: mvn exec:java -Dexec.mainClass="com.github.kno10.wikipediaentities.SCRIPT"
+
 1. download wikipedia dump in xml and json forms. For example: 
-  * enwiki-20180820-pages-articles.xml.bz2
-  * wikidata-20180826-all.json.bz2
+  * ptwiki-20210901-pages-articles.xml.bz2
+  * wikidata-20210927-all.json.bz2 (watch out: about 70gb)
   * Note: you can download multiple languages. If you do this, download xml and json for each language.
+
 2. edit wikipediaentities.properties:
   * edit directory name to match wikipedia dump date
   * put all xml dump files under loader.source, comma-separated.
+
 3. run ParseWikipedia
   * uses: loader.source args
   * yields: redirects.output, indexer.dir (creates lucene index), links.output, linktext.output 
-4. run LoadWikiData
+
+4. run LoadWikiData [ALREADY DONE, GENERATED data/wikidata.tsv.gz]
   * uses: json dump file(s) (arg1 comma separated) and corresponding wiki language codes (arg2 comma separated) from command line;
-  * yields: std output. currently you must redirect to file, then gzip manually. this output file should be the same as wikidata.output. there is an issue to fix this. 
+  * yields: std output. currently you must redirect to file, then gzip manually. this output file should be the same as wikidata.output. 
+
 5. run AnalyzeLinks
   * uses: wikidata.output, redirects.output, indexer.dir, linktext.output
   * yields: entities.output
+
 6. run subset-recommended.py
   * input: entities.gz
   * output: new reducted copy of entities.gz with phrases more likely to be entities.
-
+```
 
 License
 -------
